@@ -1,0 +1,24 @@
+﻿<html>
+<head>
+    <link href="https://vjs.zencdn.net/7.7.5/video-js.css" rel="stylesheet">
+
+    <!-- If you'd like to support IE8 (for Video.js versions prior to v7) -->
+    <script src="https://vjs.zencdn.net/ie8/1.1.2/videojs-ie8.min.js"></script>
+</head>
+
+<body>
+    <video-js class='video-js' id='player' style='top:50%; left:50%; transform: translateX(-50%) translateY(-50%); position: absolute'>
+        <source src='/stream.m3u8' type='application/vnd.apple.mpegurl'>
+    </video-js>
+    <script src='https://vjs.zencdn.net/7.7.5/video.js'></script>
+    <script>
+            var player = videojs('player', {
+                controls: true,
+                width: 640,
+                height: 480,
+                autoplay: true
+            }, function () { });
+			player.play();
+    </script>
+</body>
+</html>
