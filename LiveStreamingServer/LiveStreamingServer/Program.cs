@@ -82,7 +82,7 @@ namespace LiveStreamingServer
             {
                 ProcessStartInfo psi = new ProcessStartInfo();
                 psi.FileName = pathToFfmpeg;
-                psi.Arguments = $"-v verbose -listen 1 -i rtmp://{ipAddress}:{ffmpegPort}/live/app -c copy -c:v libx264 -c:a aac -ac 1 -strict 2 -crf 18 -profile:v baseline -maxrate 400k -bufsize 1835k -pix_fmt yuv420p -flags -global_header -hls_time 5 -hls_list_size 2 -hls_wrap 2 -start_number 1 {streamingFolder}\\stream.m3u8";
+                psi.Arguments = $"-v verbose -listen 1 -i rtmp://{ipAddress}:{ffmpegPort}/live/app -framerate 30 -hls_time 1 -hls_list_size 1 -hls_wrap 3 -preset veryfast -tune zerolatency -x264-params keyint=30 {streamingFolder}\\stream.m3u8";
                 ffmpeg = new Process();
                 ffmpeg.StartInfo = psi;
                 ffmpeg.Start();
