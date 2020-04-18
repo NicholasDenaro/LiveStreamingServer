@@ -10,21 +10,21 @@ namespace LiveStreamingServer
 {
     public class Program
     {
+        private static Options options;
         private static Process ffmpeg;
-        private static string ipAddress;
-        private static string pathToFfmpeg;
-        private static string ffmpegPort;
-        private static string streamingFolder;
 
         public static void Main(string[] args)
         {
-            ipAddress = args[0];
-            pathToFfmpeg = args[1];
-            ffmpegPort = args[2];
-            streamingFolder = args[3];
+            options = GetOptions(args);
 
             HttpListener listener = new HttpListener();
-            listener.Prefixes.Add($"http://{ipAddress}/");
+            listener.Prefixes.Add($"http://127.0.0.1/");
+            listener.Prefixes.Add($"http://{GetLocalIPAddress().ToString()}/");
+            if (options.External)
+            {
+                listener.Prefixes.Add($"http://{options.Hostname}/");
+            }
+
             listener.Start();
 
             while (true)
@@ -39,6 +39,48 @@ namespace LiveStreamingServer
                     Console.WriteLine(ex);
                 }
             }
+        }
+
+        private static Options GetOptions(string[] args)
+        {
+            Options options = new Options();
+            for (int i = 0; i < args.Length; i++)
+            {
+                switch (args[i].ToLower())
+                {
+                    case "-external":
+                        options.External = true;
+                        break;
+                    case "-host":
+                        options.Hostname = args[++i];
+                        break;
+                    case "-ffmpeg":
+                        options.FfmpegLocation = args[++i];
+                        break;
+                    case "-ffmpegport":
+                        options.FfmpegPort = int.Parse(args[++i]);
+                        break;
+                    case "-output":
+                        options.StreamDirectory = args[++i];
+                        break;
+                    case "-fps":
+                        options.FPS = int.Parse(args[++i]);
+                        break;
+                    case "-keyframe":
+                        options.KeyFrame = int.Parse(args[++i]);
+                        break;
+                    case "-listsize":
+                        options.ListSize = int.Parse(args[++i]);
+                        break;
+                    case "-hlswrap":
+                        options.HLSWrap = int.Parse(args[++i]);
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException($"'{args}' is not a supported argument");
+                }
+            }
+
+            return options;
         }
 
         private static void RunAsync(HttpListenerContext context)
@@ -81,8 +123,8 @@ namespace LiveStreamingServer
             Task.Run(() =>
             {
                 ProcessStartInfo psi = new ProcessStartInfo();
-                psi.FileName = pathToFfmpeg;
-                psi.Arguments = $"-v verbose -listen 1 -i rtmp://{ipAddress}:{ffmpegPort}/live/app -framerate 30 -hls_time 1 -hls_list_size 1 -hls_wrap 3 -preset veryfast -tune zerolatency -x264-params keyint=30 {streamingFolder}\\stream.m3u8";
+                psi.FileName = options.FfmpegLocation;
+                psi.Arguments = $"-v verbose -listen 1 -i rtmp://{GetLocalIPAddress().ToString()}:{options.FfmpegPort}/live/app -framerate {options.FPS} -hls_time 1 -hls_list_size {options.ListSize} -hls_wrap {options.HLSWrap} -preset veryfast -tune zerolatency -x264-params keyint={options.KeyFrame} {options.StreamDirectory}\\stream.m3u8";
                 ffmpeg = new Process();
                 ffmpeg.StartInfo = psi;
                 ffmpeg.Start();
@@ -115,7 +157,7 @@ namespace LiveStreamingServer
 
             byte[] output;
             // ffmpeg doesn't clean up the streaming files, but we can check if the start time is greater than the last time to write.
-            if (ffmpeg == null || ffmpeg.StartTime.ToUniversalTime() > new FileInfo($"{streamingFolder}\\stream.m3u8").LastWriteTimeUtc)
+            if (ffmpeg == null || ffmpeg.StartTime.ToUniversalTime() > new FileInfo($"{options.StreamDirectory}\\stream.m3u8").LastWriteTimeUtc)
             {
                 output = Encoding.UTF8.GetBytes("<html><body>Stream is not live.</body></html>");
             }
@@ -138,21 +180,21 @@ namespace LiveStreamingServer
             video = Path.GetFileName(video);
 
             // attempt to sanitize input here. Try to prevent path traversal
-            if (Path.GetDirectoryName(Path.Combine(streamingFolder, video)) != Path.GetDirectoryName($"{streamingFolder}\\"))
+            if (Path.GetDirectoryName(Path.Combine(options.StreamDirectory, video)) != Path.GetDirectoryName($"{options.StreamDirectory}\\"))
             {
                 response.StatusCode = (int)HttpStatusCode.BadRequest;
                 response.OutputStream.Close();
                 return;
             }
 
-            if (!File.Exists($"{streamingFolder}\\{video}"))
+            if (!File.Exists($"{options.StreamDirectory}\\{video}"))
             {
                 response.StatusCode = (int)HttpStatusCode.NotFound;
                 response.OutputStream.Close();
                 return;
             }
 
-            using (Stream stream = new FileStream($"{streamingFolder}\\{video}", FileMode.Open, FileAccess.Read))
+            using (Stream stream = new FileStream($"{options.StreamDirectory}\\{video}", FileMode.Open, FileAccess.Read))
             {
                 if (Path.GetExtension(video) == ".m3u8")
                 {
@@ -211,5 +253,18 @@ namespace LiveStreamingServer
             response.StatusDescription = statusDescription;
             response.OutputStream.Close();
         }
+    }
+
+    class Options
+    {
+        public bool External { get; set; } = false;
+        public string Hostname { get; set; }
+        public string FfmpegLocation { get; set; }
+        public int FfmpegPort { get; set; } = 8889;
+        public string StreamDirectory { get; set; }
+        public int FPS { get; set; } = 30;
+        public int HLSWrap { get; set; } = 3;
+        public int ListSize { get; set; } = 2;
+        public int KeyFrame { get; set; } = 30;
     }
 }
