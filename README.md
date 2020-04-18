@@ -1,8 +1,21 @@
-# LiveStreamingServer is a simple web server which provides an HLS stream via the web.
+# LiveStreamingServer 
 
-## Requirements
+## Overview
+LiveStreamingServer is a simple web server which serves a simple video player to play an HLS stream. This server utilizes FFmpeg as a server to convert rtmp to hls and uses Video.js as the video player
+
+### Contents
+- [Required Installations](#required-installations)
+- [Dependencies](#dependencies)
+- [Server Options](#server-options)
+- [OBS Setup](#obs-setup)
+
+
+## Required Installations
 - [.Net Core 3.1 Runtime](https://dotnet.microsoft.com/download/dotnet-core/3.1)
 - [FFmpeg](https://www.ffmpeg.org/)
+
+## Dependencies
+- [Video.js](https://videojs.com/)
 
 ## Server Options
 Usage:
