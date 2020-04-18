@@ -6,7 +6,7 @@
 
 ## Server Options
 Usage:
-	LiveStreamingServer.exe -ffmpeg <path> -output <path> \[-host <name>\] \[-ffmpegport <port:8889>\] \[-fps <fps>\] \[-keyframe <frames>\] \[-listsize <size>\] \[-hlswrap <count>\] 
+	`LiveStreamingServer.exe -ffmpeg <path> -output <path> [-host <name>] [-ffmpegport <port:8889>] [-fps <fps:30>] [-keyframe <frames:30>] [-listsize <size:3>] [-hlswrap <count:2>] `
 
 Options:
 | Option           | Required? | Default Value | Description                                                                                                          |
@@ -24,8 +24,8 @@ Options:
 ## OBS Setup
 1. Download OBS from [https://obsproject.com/](https://obsproject.com/)
 2. Go to Settings > Stream
-3. Change *Service* to `Custom...`
-4. Change *Server* to `rtmp://<ip address>:8889/live/app`
-5. Clear *Stream key* and uncheck *Use authentication*
+3. Change **Service** to `Custom...`
+4. Change **Server** to `rtmp://<ip address>:8889/live/app`
+5. Clear **Stream key** and uncheck **Use authentication**
 6. Start LiveStreamingServer.
-7. Click Start Streaming.
+7. Click **Start Streaming**.
