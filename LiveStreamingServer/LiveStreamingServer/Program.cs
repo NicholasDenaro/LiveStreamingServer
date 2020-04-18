@@ -17,10 +17,17 @@ namespace LiveStreamingServer
         {
             options = GetOptions(args);
 
+            if (options.AutoStart)
+            {
+                Action restart = null;
+                restart = () => { Task.Run(StartFfmpeg).ContinueWith(t => restart()); };
+                restart();
+            }
+
             HttpListener listener = new HttpListener();
             listener.Prefixes.Add($"http://127.0.0.1/");
             listener.Prefixes.Add($"http://{GetLocalIPAddress().ToString()}/");
-            if (options.External)
+            if (!string.IsNullOrEmpty(options.Hostname))
             {
                 listener.Prefixes.Add($"http://{options.Hostname}/");
             }
@@ -48,36 +55,59 @@ namespace LiveStreamingServer
             {
                 switch (args[i].ToLower())
                 {
-                    case "-external":
-                        options.External = true;
+                    case "-h":
+                    case "--help":
+                        Console.WriteLine(Help.Message);
+                        Environment.Exit(0);
                         break;
-                    case "-host":
+                    case "-d":
+                    case "--host":
                         options.Hostname = args[++i];
                         break;
-                    case "-ffmpeg":
+                    case "-f":
+                    case "--ffmpeg":
                         options.FfmpegLocation = args[++i];
                         break;
-                    case "-ffmpegport":
+                    case "-p":
+                    case "--ffmpegport":
                         options.FfmpegPort = int.Parse(args[++i]);
                         break;
-                    case "-output":
+                    case "-o":
+                    case "--output":
                         options.StreamDirectory = args[++i];
                         break;
-                    case "-fps":
+                    case "-r":
+                    case "--fps":
                         options.FPS = int.Parse(args[++i]);
                         break;
-                    case "-keyframe":
+                    case "-k":
+                    case "--keyframe":
                         options.KeyFrame = int.Parse(args[++i]);
                         break;
-                    case "-listsize":
+                    case "-l":
+                    case "--listsize":
                         options.ListSize = int.Parse(args[++i]);
                         break;
-                    case "-hlswrap":
+                    case "-w":
+                    case "--hlswrap":
                         options.HLSWrap = int.Parse(args[++i]);
                         break;
+                    case "-a":
+                    case "--autostart":
+                        options.AutoStart = true;
+                        break;
                     default:
-                        throw new ArgumentOutOfRangeException($"'{args}' is not a supported argument");
+                        throw new ArgumentOutOfRangeException($"'{args}' is not a supported argument. Run with --help for more information on options.");
                 }
+            }
+
+            if (string.IsNullOrEmpty(options.FfmpegLocation))
+            {
+                throw new ArgumentException("--ffmpeg");
+            }
+            else if (string.IsNullOrEmpty(options.StreamDirectory))
+            {
+                throw new ArgumentException("--output");
             }
 
             return options;
@@ -104,6 +134,12 @@ namespace LiveStreamingServer
 
         private static void Start(HttpListenerRequest request, HttpListenerResponse response)
         {
+            if (options.AutoStart)
+            {
+                Bad(response, "Server will autostart");
+                return;
+            }
+
             string local = GetLocalIPAddress().ToString();
             string remote = request.RemoteEndPoint.Address.ToString();
 
@@ -120,21 +156,23 @@ namespace LiveStreamingServer
                 return;
             }
 
-            Task.Run(() =>
-            {
-                ProcessStartInfo psi = new ProcessStartInfo();
-                psi.FileName = options.FfmpegLocation;
-                psi.Arguments = $"-v verbose -listen 1 -i rtmp://{GetLocalIPAddress().ToString()}:{options.FfmpegPort}/live/app -framerate {options.FPS} -hls_time 1 -hls_list_size {options.ListSize} -hls_wrap {options.HLSWrap} -preset veryfast -tune zerolatency -x264-params keyint={options.KeyFrame} {options.StreamDirectory}\\stream.m3u8";
-                ffmpeg = new Process();
-                ffmpeg.StartInfo = psi;
-                ffmpeg.Start();
-                Console.WriteLine("Started rtmp server");
-                ffmpeg.WaitForExit();
-                Console.WriteLine("Stopped rtmp server");
-                ffmpeg = null;
-            });
+            Task.Run(StartFfmpeg);
 
             OK(response, "started ffmpeg");
+        }
+
+        private static void StartFfmpeg()
+        {
+            ProcessStartInfo psi = new ProcessStartInfo();
+            psi.FileName = options.FfmpegLocation;
+            psi.Arguments = $"-v verbose -listen 1 -i rtmp://{GetLocalIPAddress().ToString()}:{options.FfmpegPort}/live/app -framerate {options.FPS} -hls_time 1 -hls_list_size {options.ListSize} -hls_wrap {options.HLSWrap} -preset veryfast -tune zerolatency -x264-params keyint={options.KeyFrame} {options.StreamDirectory}\\stream.m3u8";
+            ffmpeg = new Process();
+            ffmpeg.StartInfo = psi;
+            ffmpeg.Start();
+            Console.WriteLine("Started rtmp server");
+            ffmpeg.WaitForExit();
+            Console.WriteLine("Stopped rtmp server");
+            ffmpeg = null;
         }
 
         public static IPAddress GetLocalIPAddress()
@@ -257,14 +295,14 @@ namespace LiveStreamingServer
 
     class Options
     {
-        public bool External { get; set; } = false;
         public string Hostname { get; set; }
         public string FfmpegLocation { get; set; }
-        public int FfmpegPort { get; set; } = 8889;
         public string StreamDirectory { get; set; }
+        public int FfmpegPort { get; set; } = 8889;
         public int FPS { get; set; } = 30;
         public int HLSWrap { get; set; } = 3;
         public int ListSize { get; set; } = 2;
         public int KeyFrame { get; set; } = 30;
+        public bool AutoStart { get; set; } = false;
     }
 }
